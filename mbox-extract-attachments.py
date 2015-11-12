@@ -35,143 +35,138 @@ __license__ = "GNU GPLv3+"
 __version__ = 1.3
 __date__ = "2015-11-12"
 
-
 import mailbox
 import base64
 import os
 import sys
 import email
-
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = list
+    print "progress bar library not found"
+    print "run: pip install tqdm"
 
 BLACKLIST = ('signature.asc', 'message-footer.txt', 'smime.p7s')
 VERBOSE = 1
 
-attachments = 0 # Count extracted attachment
+attachments = 0  # Count extracted attachment
 skipped = 0
 
 # Search for filename or find recursively if it's multipart
 def extract_attachment(payload):
-        global attachments, skipped
-        filename = payload.get_filename()
+    global attachments, skipped
+    filename = payload.get_filename()
 
-        # Recursive Case
-        if filename is None and payload.is_multipart():
+    # Recursive Case
+    if filename is None:
+        if payload.is_multipart():
             for payl in payload.get_payload():
                 extract_attachment(payl)
-            return
+        return
 
-        # Base Case
-        print "\nAttachment found!"
-        if filename.find('=?') != -1:
-            ll = email.header.decode_header(filename)
-            filename = ""
-            for l in ll:
-                filename = filename + l[0]
+    # Base Case
+    if filename.find('=?') != -1:
+        ll = email.header.decode_header(filename)
+        filename = ""
+        for l in ll:
+            filename = filename + l[0]
 
-        if filename in BLACKLIST:
-            skipped = skipped + 1
-            if (VERBOSE >= 1):
-                print "Skipping %s (blacklist)\n" % filename
-                return
+    if filename in BLACKLIST:
+        skipped += 1
+        return
 
-        # Can the filename not be specified?
-        #       if filename is None:
-        #               filename = "unknown_%d_%d.txt" %(i, p)
+    # Can the filename not be specified?
+    # if filename is None:
+    #     filename = "unknown_%d_%d.txt" % (i, p)
 
-        content = payload.as_string()
-        # Skip headers, go to the content
-        fh = content.find('\n\n')
-        content = content[fh:]
+    content = payload.as_string()
+    # Skip headers, go to the content
+    fh = content.find('\n\n')
+    content = content[fh:]
 
-        # if it's base64....
-        if payload.get('Content-Transfer-Encoding') == 'base64':
-            content = base64.decodestring(content)
-            # TODO: Handle this:
-            # File "/usr/lib64/python2.6/base64.py", line 321, in decodestring
-            #     return binascii.a2b_base64(s)
-            # binascii.Error: Incorrect padding
+    # if it's base64....
+    if payload.get('Content-Transfer-Encoding') == 'base64':
+        content = base64.decodestring(content)
+        # TODO: Handle this:
+        # File "/usr/lib64/python2.6/base64.py", line 321, in decodestring
+        #     return binascii.a2b_base64(s)
+        # binascii.Error: Incorrect padding
 
-        # quoted-printable
-        # what else? ...
+    # quoted-printable
+    # what else? ...
 
-        print "Extracting %s (%d bytes)\n" %(filename, len(content))
+    n = 1
+    filename = orig_filename = os.path.basename(filename)
+    while os.path.exists(filename):
+        # TODO: Detect if it's just a duplicate
+        filename = orig_filename + "." + str(n)
+        n += 1
 
-        n = 1
-        orig_filename = filename
-        while os.path.exists(filename):
-            filename = orig_filename + "." + str(n)
-            n = n+1
+    fp = None
+    try:
+        fp = open(filename, "w")
+        fp.write(content)
+    except IOError as e:
+        print "io error while saving attachment: %s" % str(e)
+        return
+    finally:
+        if fp is not None: fp.close()
 
-        fp = None
-        try:
-            fp = open(filename, "w")
-            # fp = open(str(i) + "_" + filename, "w")
-            fp.write(content)
-        except IOError as e:
-            print "Aborted, IOError!!!"
-            return
-        finally:
-            if fp is not None: fp.close()
+    attachments = attachments + 1
 
-        attachments = attachments + 1
+def main(filename, directory):
+    mb = mailbox.mbox(filename)
+    print "counting messages... "
+    message_count = len(mb)
+    print "done (found %s)" % message_count
 
+    os.chdir(directory)
 
-###
-print "Extract attachments from mbox files"
-print "Copyright (C) 2012 Pablo Castellano"
-print "Revised 2015 Liam Bowen"
-print "This program comes with ABSOLUTELY NO WARRANTY."
-print "This is free software, and you are welcome to redistribute it under certain conditions."
-print
+    # tqdm = list
+    for i in tqdm(range(message_count), ascii=True):
+        mes = mb.get_message(i)
+        em = email.message_from_string(mes.as_string())
 
-if len(sys.argv) < 2 or len(sys.argv) > 3:
-    print "Usage: %s <mbox_file> [directory]" % sys.argv[0]
-    sys.exit(0)
+        # subject = em.get('Subject')
+        # if subject is not None and subject.find('=?') != -1:
+        #     ll = email.header.decode_header(subject)
+        #     subject = ""
+        #     for l in ll:
+        #         subject = subject + l[0]
 
-filename = sys.argv[1]
-directory = os.path.curdir
+        # em_from = em.get('From')
+        # if em_from is not None and em_from.find('=?') != -1:
+        #     ll = email.header.decode_header(em_from)
+        #     em_from = ""
+        #     for l in ll:
+        #         em_from = em_from + l[0]
 
-if not os.path.exists(filename):
-    print "File doesn't exist:", filename
-    sys.exit(1)
+        if em.is_multipart():
+            for payl in em.get_payload():
+                extract_attachment(payl)
+        else:
+            extract_attachment(em)
 
-if len(sys.argv) == 3:
-    directory = sys.argv[2]
-    if not os.path.exists(directory) or not os.path.isdir(directory):
-        print "Directory doesn't exist:", directory
+if __name__=='__main__':
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
+        print "usage: %s <mbox_file> [directory]" % sys.argv[0]
         sys.exit(1)
 
-mb = mailbox.mbox(filename)
-nmes = len(mb)
+    filename = sys.argv[1]
+    directory = os.path.curdir
 
-os.chdir(directory)
+    if not os.path.exists(filename):
+        print "file doesn't exist:", filename
+        sys.exit(1)
 
-for i in range(len(mb)):
-    mes = mb.get_message(i)
-    em = email.message_from_string(mes.as_string())
+    if len(sys.argv) == 3:
+        directory = sys.argv[2]
+        if not os.path.exists(directory) or not os.path.isdir(directory):
+            print "Directory doesn't exist:", directory
+            sys.exit(1)
 
-    subject = em.get('Subject')
-    if subject is not None and subject.find('=?') != -1:
-        ll = email.header.decode_header(subject)
-        subject = ""
-        for l in ll:
-            subject = subject + l[0]
+    main(filename, directory)
 
-    em_from = em.get('From')
-    if em_from is not None and em_from.find('=?') != -1:
-        ll = email.header.decode_header(em_from)
-        em_from = ""
-        for l in ll:
-            em_from = em_from + l[0]
-
-    filename = mes.get_filename()
-
-    # Puede tener filename siendo multipart???
-    if em.is_multipart():
-        for payl in em.get_payload():
-            extract_attachment(payl)
-    else:
-        extract_attachment(em)
-
-print "total attachments extracted:", attachments
-print "total attachments skipped:", skipped
+    print "total attachments extracted:", attachments
+    print "total attachments skipped:", skipped
