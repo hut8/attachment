@@ -35,11 +35,12 @@ __license__ = "GNU GPLv3+"
 __version__ = 1.3
 __date__ = "2015-11-12"
 
-import mailbox
 import base64
+import binascii
+import email
+import mailbox
 import os
 import sys
-import email
 try:
     from tqdm import tqdm
 except ImportError:
@@ -54,7 +55,7 @@ attachments = 0  # Count extracted attachment
 skipped = 0
 
 # Search for filename or find recursively if it's multipart
-def extract_attachment(payload):
+def extract_attachment(payload, message_index):
     global attachments, skipped
     filename = payload.get_filename()
 
@@ -62,11 +63,12 @@ def extract_attachment(payload):
     if filename is None:
         if payload.is_multipart():
             for payl in payload.get_payload():
-                extract_attachment(payl)
+                extract_attachment(payl, message_index)
         return
 
     # Base Case
     if filename.find('=?') != -1:
+        # TODO: This is broken; should do legit charset conversion
         ll = email.header.decode_header(filename)
         filename = ""
         for l in ll:
@@ -76,10 +78,6 @@ def extract_attachment(payload):
         skipped += 1
         return
 
-    # Can the filename not be specified?
-    # if filename is None:
-    #     filename = "unknown_%d_%d.txt" % (i, p)
-
     content = payload.as_string()
     # Skip headers, go to the content
     fh = content.find('\n\n')
@@ -87,11 +85,12 @@ def extract_attachment(payload):
 
     # if it's base64....
     if payload.get('Content-Transfer-Encoding') == 'base64':
-        content = base64.decodestring(content)
-        # TODO: Handle this:
-        # File "/usr/lib64/python2.6/base64.py", line 321, in decodestring
-        #     return binascii.a2b_base64(s)
-        # binascii.Error: Incorrect padding
+        try:
+            content = base64.decodestring(content)
+        except binascii.Error:
+            print "Encountered invalid base64 on # %s:" % message_index
+            print content
+            return
 
     # quoted-printable
     # what else? ...
@@ -128,27 +127,13 @@ def main(filename, directory):
         mes = mb.get_message(i)
         em = email.message_from_string(mes.as_string())
 
-        # subject = em.get('Subject')
-        # if subject is not None and subject.find('=?') != -1:
-        #     ll = email.header.decode_header(subject)
-        #     subject = ""
-        #     for l in ll:
-        #         subject = subject + l[0]
-
-        # em_from = em.get('From')
-        # if em_from is not None and em_from.find('=?') != -1:
-        #     ll = email.header.decode_header(em_from)
-        #     em_from = ""
-        #     for l in ll:
-        #         em_from = em_from + l[0]
-
         if em.is_multipart():
             for payl in em.get_payload():
-                extract_attachment(payl)
+                extract_attachment(payl, i)
         else:
-            extract_attachment(em)
+            extract_attachment(em, i)
 
-if __name__=='__main__':
+if __name__ == '__main__':
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print "usage: %s <mbox_file> [directory]" % sys.argv[0]
         sys.exit(1)
