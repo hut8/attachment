@@ -101,7 +101,7 @@ def process_message(msg, directory):
                 logging.debug("extract filename: %s" % filename)
                 destination = os.path.join(directory, filename)
                 extract_attachment(part, destination)
-            else:
+            elif filename:
                 print("found message with nameless attachment: %s" % msg['subject'])
 
 def main():
