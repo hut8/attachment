@@ -51,6 +51,7 @@ import mailbox
 import os
 import sys
 import logging
+import fnmatch
 try:
     from tqdm import tqdm
 except ImportError:
@@ -58,7 +59,7 @@ except ImportError:
     print( "run: pip install tqdm")
     exit(1)
 
-BLACKLIST = ('signature.asc', 'message-footer.txt', 'smime.p7s')
+BLACKLIST = set(['signature.asc', 'message-footer.txt', 'smime.p7s'])
 
 class ExtractionError(Exception):
     pass
@@ -84,11 +85,19 @@ def extract_attachment(msg, destination):
     except IOError as e:
         print("io error while saving attachment: %s" % str(e))
 
+def wanted(filename):
+    if filename in BLACKLIST:
+        return False
+    for ext in ['*.doc', '*.docx', '*.odt', '*.pdf', '*.rtf']:
+        if fnmatch.fnmatch(filename, ext):
+            return True
+    return False
+
 def process_message(msg, directory):
     for part in msg.walk():
         if part.get_content_disposition() == 'attachment':
             filename = part.get_filename()
-            if filename:
+            if filename and wanted(filename):
                 logging.debug("extract filename: %s" % filename)
                 destination = os.path.join(directory, filename)
                 extract_attachment(part, destination)
