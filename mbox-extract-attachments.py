@@ -89,7 +89,7 @@ def process_message(msg, directory):
         if part.get_content_disposition() == 'attachment':
             filename = part.get_filename()
             if filename:
-                print(filename)
+                logging.debug("extract filename: %s" % filename)
                 destination = os.path.join(directory, filename)
                 extract_attachment(part, destination)
             else:
@@ -102,6 +102,10 @@ def main():
 
     filename = sys.argv[1]
     directory = os.path.curdir
+
+    logging.basicConfig(
+        filename='attachment-%s.log' % os.path.basename(filename),
+        level=logging.DEBUG)
 
     if not os.path.exists(filename):
         print("file doesn't exist:", filename)
