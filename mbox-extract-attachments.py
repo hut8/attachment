@@ -96,7 +96,7 @@ def process_message(msg, directory):
             else:
                 print("found message with nameless attachment: %s" % msg['subject'])
 
-def main(filename, directory):
+def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("usage: %s <mbox_file> [directory]" % sys.argv[0])
         sys.exit(1)
