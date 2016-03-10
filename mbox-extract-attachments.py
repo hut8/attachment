@@ -97,16 +97,6 @@ def process_message(msg, directory):
                 print("found message with nameless attachment: %s" % msg['subject'])
 
 def main(filename, directory):
-    box = mailbox.mbox(filename)
-    print("counting messages... ")
-    message_count = len(box)
-    print("done (found %s)" % message_count)
-
-    for i in tqdm(range(message_count), ascii=True):
-        msg = box.get_message(i)
-        process_message(msg, directory)
-
-if __name__ == '__main__':
     if len(sys.argv) < 2 or len(sys.argv) > 3:
         print("usage: %s <mbox_file> [directory]" % sys.argv[0])
         sys.exit(1)
@@ -124,4 +114,14 @@ if __name__ == '__main__':
             print("Directory doesn't exist:", directory)
             sys.exit(1)
 
-    main(filename, directory)
+    box = mailbox.mbox(filename)
+    print("counting messages... ")
+    message_count = len(box)
+    print("done (found %s)" % message_count)
+
+    for i in tqdm(range(message_count), ascii=True):
+        msg = box.get_message(i)
+        process_message(msg, directory)
+
+if __name__ == '__main__':
+    main()
