@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # mbox-extract-attachments.py - Extract attachments from mbox files
 # 16/March/2012
@@ -38,12 +38,13 @@
 
 # Related RFCs: 2047, 2044, 1522
 
+from __future__ import print_function
 
 __author__ = "Pablo Castellano <pablo@anche.no>"
 __author__ = ', '.join([__author__, "Liam Bowen <liambowen@gmail.com>"])
 __license__ = "GNU GPLv3+"
-__version__ = 1.3
-__date__ = "2015-11-12"
+__version__ = 1.4
+__date__ = "2016-03-09"
 
 import base64
 import binascii
@@ -55,112 +56,74 @@ try:
     from tqdm import tqdm
 except ImportError:
     tqdm = list
-    print "progress bar library not found"
-    print "run: pip install tqdm"
+    print("progress bar library not found")
+    print( "run: pip install tqdm")
 
 BLACKLIST = ('signature.asc', 'message-footer.txt', 'smime.p7s')
 VERBOSE = 1
 
-attachments = 0  # Count extracted attachment
-skipped = 0
+class ExtractionError(Exception):
+    pass
 
-# Search for filename or find recursively if it's multipart
-def extract_attachment(payload, message_index):
-    global attachments, skipped
-    filename = payload.get_filename()
+def extract_attachment(msg, destination):
+    if msg.is_multipart():
+        raise ExtractionError("tried to extract from multipart")
 
-    # Recursive Case
-    if filename is None:
-        if payload.is_multipart():
-            for payl in payload.get_payload():
-                extract_attachment(payl, message_index)
-        return
+    attachment_data = msg.get_payload(decode=True)
 
-    # Base Case
-    if filename.find('=?') != -1:
-        # TODO: This is broken; should do legit charset conversion
-        ll = email.header.decode_header(filename)
-        filename = ""
-        for l in ll:
-            filename = filename + l[0]
-
-    if filename in BLACKLIST:
-        skipped += 1
-        return
-
-    content = payload.as_string()
-    # Skip headers, go to the content
-    fh = content.find('\n\n')
-    content = content[fh:]
-
-    # if it's base64....
-    if payload.get('Content-Transfer-Encoding') == 'base64':
-        try:
-            content = base64.decodestring(content)
-        except binascii.Error:
-            print "Encountered invalid base64 on # %s:" % message_index
-            print content
-            return
-
-    # quoted-printable
-    # what else? ...
-
+    orig_destination = destination
     n = 1
-    filename = orig_filename = os.path.basename(filename)
-    while os.path.exists(filename):
+    while os.path.exists(destination):
         # TODO: Detect if it's just a duplicate
-        filename = orig_filename + "." + str(n)
+        destination = orig_destination + "." + str(n)
         n += 1
 
     fp = None
     try:
-        fp = open(filename, "w")
-        fp.write(content)
+        with open(filename, "wb") as sink:
+            sink.write(attachment_data)
     except IOError as e:
-        print "io error while saving attachment: %s" % str(e)
-        return
-    finally:
-        if fp is not None: fp.close()
+        print("io error while saving attachment: %s" % str(e))
 
-    attachments = attachments + 1
+def process_message(msg, directory):
+    for part in msg.walk():
+        if part.get_content_disposition() == 'attachment':
+            filename = part.get_filename()
+            if filename:
+                print(filename)
+                destination = os.path.join(directory, filename)
+                extract_attachment(msg, destination)
+            else:
+                print("found message with nameless attachment: %s" % msg['subject'])
 
 def main(filename, directory):
-    mb = mailbox.mbox(filename)
-    print "counting messages... "
-    message_count = len(mb)
-    print "done (found %s)" % message_count
+    box = mailbox.mbox(filename)
+    print("counting messages... ")
+    message_count = len(box)
+    print("done (found %s)" % message_count)
 
     os.chdir(directory)
 
     for i in tqdm(range(message_count), ascii=True):
-        mes = mb.get_message(i)
-        em = email.message_from_string(mes.as_string())
-
-        if em.is_multipart():
-            for payl in em.get_payload():
-                extract_attachment(payl, i)
-        else:
-            extract_attachment(em, i)
+        msg = box.get_message(i)
+        process_message(msg, directory)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print "usage: %s <mbox_file> [directory]" % sys.argv[0]
+        print("usage: %s <mbox_file> [directory]" % sys.argv[0])
         sys.exit(1)
 
     filename = sys.argv[1]
     directory = os.path.curdir
 
     if not os.path.exists(filename):
-        print "file doesn't exist:", filename
+        print("file doesn't exist:", filename)
         sys.exit(1)
 
     if len(sys.argv) == 3:
         directory = sys.argv[2]
         if not os.path.exists(directory) or not os.path.isdir(directory):
-            print "Directory doesn't exist:", directory
+            print("Directory doesn't exist:", directory)
             sys.exit(1)
 
     main(filename, directory)
-
-    print "total attachments extracted:", attachments
-    print "total attachments skipped:", skipped
