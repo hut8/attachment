@@ -24,6 +24,7 @@ import hashlib
 #     exit(1)
 
 BLACKLIST = set(['signature.asc', 'message-footer.txt', 'smime.p7s'])
+extracted_attachments = set()
 
 class ExtractionError(Exception):
     pass
@@ -34,6 +35,12 @@ def extract_attachment(msg, destination):
         return
 
     attachment_data = msg.get_payload(decode=True)
+
+    attachment_hash = hashlib.sha1(attachment_data).hexdigest()
+    if attachment_hash in extracted_attachments:
+        logging.debug("already extracted attachment")
+        return
+    extracted_attachments |= attachment_hash
 
     orig_destination = destination
     n = 1
