@@ -103,8 +103,6 @@ def main(filename, directory):
     message_count = len(box)
     print("done (found %s)" % message_count)
 
-    os.chdir(directory)
-
     for i in tqdm(range(message_count), ascii=True):
         msg = box.get_message(i)
         process_message(msg, directory)
