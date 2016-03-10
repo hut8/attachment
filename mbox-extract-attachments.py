@@ -66,8 +66,8 @@ class ExtractionError(Exception):
 
 def extract_attachment(msg, destination):
     if msg.is_multipart():
-        print(destination)
-        raise ExtractionError("tried to extract from multipart")
+        logging.error("tried to extract from multipart: %s" % destination)
+        return
 
     attachment_data = msg.get_payload(decode=True)
 
@@ -83,7 +83,7 @@ def extract_attachment(msg, destination):
         with open(destination, "wb") as sink:
             sink.write(attachment_data)
     except IOError as e:
-        print("io error while saving attachment: %s" % str(e))
+        logging.error("io error while saving attachment: %s" % str(e))
 
 def wanted(filename):
     if filename in BLACKLIST:
@@ -102,7 +102,7 @@ def process_message(msg, directory):
                 destination = os.path.join(directory, filename)
                 extract_attachment(part, destination)
             elif filename:
-                print("found message with nameless attachment: %s" % msg['subject'])
+                logging.debug("found message with nameless attachment: %s" % msg['subject'])
 
 def main():
     if len(sys.argv) < 2 or len(sys.argv) > 3:
