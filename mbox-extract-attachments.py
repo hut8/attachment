@@ -16,12 +16,12 @@ import sys
 import logging
 import fnmatch
 import hashlib
-try:
-    from tqdm import tqdm
-except ImportError:
-    print("progress bar library not found")
-    print( "run: pip install tqdm")
-    exit(1)
+# try:
+#     from tqdm import tqdm
+# except ImportError:
+#     print("progress bar library not found")
+#     print( "run: pip install tqdm")
+#     exit(1)
 
 BLACKLIST = set(['signature.asc', 'message-footer.txt', 'smime.p7s'])
 
@@ -90,12 +90,11 @@ def main():
             sys.exit(1)
 
     box = mailbox.mbox(filename)
-    print("counting messages... ")
+    print("counting messages for %s... " % filename)
     message_count = len(box)
-    print("done (found %s)" % message_count)
+    print("%s contains %s messages" % (filename, message_count))
 
-    for i in tqdm(range(message_count), ascii=True):
-        msg = box.get_message(i)
+    for msg in box:
         process_message(msg, directory)
 
 if __name__ == '__main__':
