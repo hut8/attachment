@@ -60,7 +60,6 @@ except ImportError:
     print( "run: pip install tqdm")
 
 BLACKLIST = ('signature.asc', 'message-footer.txt', 'smime.p7s')
-VERBOSE = 1
 
 class ExtractionError(Exception):
     pass
@@ -81,7 +80,7 @@ def extract_attachment(msg, destination):
 
     fp = None
     try:
-        with open(filename, "wb") as sink:
+        with open(destination, "wb") as sink:
             sink.write(attachment_data)
     except IOError as e:
         print("io error while saving attachment: %s" % str(e))
