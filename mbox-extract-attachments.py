@@ -67,6 +67,7 @@ class ExtractionError(Exception):
 
 def extract_attachment(msg, destination):
     if msg.is_multipart():
+        print(destination)
         raise ExtractionError("tried to extract from multipart")
 
     attachment_data = msg.get_payload(decode=True)
