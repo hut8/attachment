@@ -46,18 +46,17 @@ __license__ = "GNU GPLv3+"
 __version__ = 1.4
 __date__ = "2016-03-09"
 
-import base64
-import binascii
 import email
 import mailbox
 import os
 import sys
+import logging
 try:
     from tqdm import tqdm
 except ImportError:
-    tqdm = list
     print("progress bar library not found")
     print( "run: pip install tqdm")
+    exit(1)
 
 BLACKLIST = ('signature.asc', 'message-footer.txt', 'smime.p7s')
 
