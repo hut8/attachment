@@ -93,7 +93,7 @@ def process_message(msg, directory):
             if filename:
                 print(filename)
                 destination = os.path.join(directory, filename)
-                extract_attachment(msg, destination)
+                extract_attachment(part, destination)
             else:
                 print("found message with nameless attachment: %s" % msg['subject'])
 
