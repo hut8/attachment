@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function
-
 __author__ = "Liam Bowen <liambowen@gmail.com>"
 __license__ = "GNU GPLv3+"
 __version__ = 1.0
@@ -58,7 +56,7 @@ def process_message(msg, directory, attachment_db):
             if filename and wanted(filename):
                 logging.debug("extract filename: %s" % filename)
                 destination = os.path.join(directory, filename)
-                extract_attachment(part, destination)
+                extract_attachment(part, destination, attachment_db)
             elif filename:
                 logging.debug("found message with nameless attachment: %s" % msg['subject'])
 
