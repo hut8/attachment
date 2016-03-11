@@ -15,20 +15,10 @@ import sys
 import logging
 import fnmatch
 import hashlib
-# try:
-#     from tqdm import tqdm
-# except ImportError:
-#     print("progress bar library not found")
-#     print( "run: pip install tqdm")
-#     exit(1)
 
 BLACKLIST = set(['signature.asc', 'message-footer.txt', 'smime.p7s'])
-extracted_attachments = set()
 
-class ExtractionError(Exception):
-    pass
-
-def extract_attachment(msg, destination):
+def extract_attachment(msg, destination, attachment_db):
     if msg.is_multipart():
         logging.error("tried to extract from multipart: %s" % destination)
         return
@@ -36,10 +26,10 @@ def extract_attachment(msg, destination):
     attachment_data = msg.get_payload(decode=True)
 
     attachment_hash = hashlib.sha1(attachment_data).hexdigest()
-    if attachment_hash in extracted_attachments:
+    if attachment_hash in attachment_db:
         logging.debug("already extracted attachment")
         return
-    extracted_attachments |= attachment_hash
+    attachment_db.add(attachment_hash)
 
     orig_destination = destination
     n = 1
@@ -47,7 +37,6 @@ def extract_attachment(msg, destination):
         destination = orig_destination + "." + str(n)
         n += 1
 
-    fp = None
     try:
         with open(destination, "wb") as sink:
             sink.write(attachment_data)
@@ -62,7 +51,7 @@ def wanted(filename):
             return True
     return False
 
-def process_message(msg, directory):
+def process_message(msg, directory, attachment_db):
     for part in msg.walk():
         if part.get_content_disposition() == 'attachment':
             filename = part.get_filename()
@@ -100,8 +89,10 @@ def main():
     message_count = len(box)
     print("%s contains %s messages" % (filename, message_count))
 
+    attachment_db = set()
     for msg in box:
-        process_message(msg, directory)
+        process_message(msg, directory, attachment_db)
+    print("extracted %s attachments" % len(attachment_db))
 
 if __name__ == '__main__':
     main()
