@@ -3,11 +3,10 @@
 
 from __future__ import print_function
 
-__author__ = "Pablo Castellano <pablo@anche.no>"
-__author__ = ', '.join([__author__, "Liam Bowen <liambowen@gmail.com>"])
+__author__ = "Liam Bowen <liambowen@gmail.com>"
 __license__ = "GNU GPLv3+"
-__version__ = 1.4
-__date__ = "2016-03-09"
+__version__ = 1.0
+__date__ = "2016-03-10"
 
 import email
 import mailbox
