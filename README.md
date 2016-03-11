@@ -1,5 +1,14 @@
 # attachment
-Extract attachments from emails
 
-Based on code from Pablo Castellano <pablo@anche.no> at
-[PabloCastellano/pablog-scripts](https://github.com/PabloCastellano/pablog-scripts/blob/master/mbox-extract-attachments.py)
+Extract attachments from email boxes in mbox format.
+
+Particularly useful for Google Takeout, which exports email from Gmail in `mbox` format.
+
+# Contact
+
+Liam@tenex.tech
+
+# Requirements
+
+* Python 3 (tested on 3.5)
+* tqdm (optional)
